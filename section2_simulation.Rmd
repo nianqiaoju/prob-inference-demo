@@ -1,0 +1,67 @@
+---
+title: "Section 2 - Superefficiency and Hodge estimator"
+author: Nianqiao Ju 
+output:
+  html_document: default
+  html_notebook: default
+---
+
+```{r}
+require(ggplot2)
+```
+
+We want to plot the risk with respect to squared error loss (MSE):
+$$ R_n(\theta^{\star}, \widehat{\theta_n}) = \mathbb{E}_{\theta^\star} \left[ n (\theta^\star - \widehat{\theta_n})^2   \right]$$ for different values of $n = 5,20,100$.
+
+With $\epsilon = 0$ the hodge estimator $$ \widehat{\theta_n}^H = \mathbb{I}(|\bar{Y}_n|\leq n^{-1/4}) \bar{Y}_n,$$ the risk is 
+$$ R_n(\theta^\star, \widehat{\theta_n}^H) = 1 - \int_{-\sqrt{n}\theta^\star - n^{1/4}}^{-\sqrt{n}\theta^\star - n^{1/4}} z^2 \varphi(z) dz + n(\theta^\star)^2 \left[ \Phi(-\sqrt{n}\theta^\star + n^{1/4}) - \Phi(-\sqrt{n}\theta^\star - n^{1/4})\right].$$
+```{r helper functions}
+u <- function(n,theta_star){
+  return(-sqrt(n)*theta_star + n^(1/4))
+}
+
+l <- function(n,theta_star){
+  return(-sqrt(n)*theta_star - n^(1/4))
+}
+
+integrand <- function(z) z^2 * dnorm(z, mean = 0, sd = 1 )
+```
+
+Given the helper functions, we can calculate the risk.
+```{r risk}
+risk <- function(n,theta_star){
+  u <- u(n,theta_star)
+  l <- l(n,theta_star)
+  r <- 1 - integrate(integrand, lower = l, upper = u)$value + n*theta_star^2*(pnorm(u) - pnorm(l))
+  return(r)
+}
+```
+
+Some visualization: risk as a function of data-genearating parameter $\theta^\star$ for $n = 5,20,100.$ 
+
+```{r visual}
+curve(sapply(x, function(v) risk(100,v)), from = -3, to = 3, xlab = expression(theta^star), ylab = "risk",  col = 'red',n = 10001, ylim = c(0,6),
+      main = 'MSE with different # of observations')
+curve(sapply(x, function(v) risk(20,v)), from = -3, to = 3,  n = 1001, add = T , col = 'green')
+curve(sapply(x, function(v) risk(5,v)), from = -3, to = 3,  n = 1001, add = T , col = 'blue')
+abline(h = 1)
+legend("topright", 
+  legend = c("n = 100", "n = 20", 'n = 5'), 
+  col = c('red', 'green','blue'),
+  lty = c(1,1,1)
+)
+```
+
+We can see that at $\theta^\star = 0$ the risk is less than 0, but it behaves erratically in the vicinity of zero, and even becomes unbounded as $n\to \infty.$ 
+
+
+Visualization with ggplot2:
+```{r}
+gg <- ggplot(data.frame(x = c(-3,3)), aes(x)) 
+gg <- gg + stat_function(fun = function(x) sapply(x, function(v) risk(5,v)),geom="line", aes(colour="n = 5"))
+gg <- gg + stat_function(fun = function(x) sapply(x, function(v) risk(20,v)),geom="line", aes(colour="n = 20"))
+gg <- gg + stat_function(fun = function(x) sapply(x, function(v) risk(100,v)),geom="line", aes(colour="n = 100"))
+gg <- gg + xlab(expression(theta^star))+ ylab('risk')
+gg
+```
+
